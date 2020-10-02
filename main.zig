@@ -97,10 +97,12 @@ fn searchDirRecursively(path: []const u8, files: *Files, allocator: *std.mem.All
     while (try walker.next()) |file| {
         switch (file.kind) {
             .File => {
-                const optTime: ?isize = fileTime(file.path);
-                if (optTime) |time| {
-                    var fname = try allocator.alloc(u8, file.path.len);
-                    std.mem.copy(u8, fname, file.path);
+                if (fileTime(file.path)) |time| {
+                    const index = std.mem.indexOf(u8, file.path, path);
+                    const new_start = if (index) |i| i + path.len + 1 else 0;
+
+                    var fname = try allocator.alloc(u8, file.path.len - new_start);
+                    std.mem.copy(u8, fname, file.path[new_start..]);
                     const f = File{
                         .time = time,
                         .name = fname,
