@@ -19,6 +19,7 @@ const Args = struct {
     dir: []const u8 = "./",
     reverse: bool = false,
     recursive: bool = false,
+    verbose: bool = false,
 };
 
 pub fn main() !void {
@@ -40,6 +41,9 @@ pub fn main() !void {
         try searchDir(args.dir[0..], &files, arena);
     }
 
+    if (args.verbose) {
+        std.debug.warn("found {} files\n", .{files.items.len});
+    }
     utils.insertionSort(File, files.items);
     if (args.reverse) {
         std.mem.reverse(File, files.items);
@@ -135,8 +139,10 @@ fn fileTime(path: []const u8) ?isize {
 
 fn usage() void {
     print("Program prints files in directory, sorted by last modification time\n", .{});
-    print("{} [-r -R] directory\n", .{os.argv[0]});
-    print("-r to print in reversed order\n-R for recursive searching\n", .{});
+    print("{} [-r -R -v] directory\n", .{os.argv[0]});
+    print("-r to print in reversed order", .{});
+    print("-R for recursive searching\n", .{});
+    print("-v for verbose output\n", .{});
 }
 
 fn parseArgs(argv: [][*:0]u8) ?Args {
@@ -149,6 +155,8 @@ fn parseArgs(argv: [][*:0]u8) ?Args {
             args.reverse = true;
         } else if (eql(i, "-R")) {
             args.recursive = true;
+        } else if (eql(i, "-v")) {
+            args.verbose = true;
         } else {
             args.dir = std.mem.spanZ(i);
         }
