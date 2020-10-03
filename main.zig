@@ -39,6 +39,7 @@ pub fn main() !void {
     } else {
         try searchDir(args.dir[0..], &files, arena);
     }
+
     utils.insertionSort(File, files.items);
     if (args.reverse) {
         std.mem.reverse(File, files.items);
@@ -73,7 +74,10 @@ fn searchDir(path: []const u8, files: *Files, allocator: *std.mem.Allocator) !vo
     while (try iter.next()) |entry| {
         switch (entry.kind) {
             .File, .Directory, .SymLink => {
-                const file = try dir.openFile(entry.name, .{});
+                const file = dir.openFile(entry.name, .{}) catch |err| switch (err) {
+                    error.AccessDenied => continue,
+                    else => return err,
+                };
                 defer file.close();
                 const stat = try file.stat();
                 const time = stat.mtime;
@@ -95,7 +99,12 @@ fn searchDir(path: []const u8, files: *Files, allocator: *std.mem.Allocator) !vo
 fn searchDirRecursively(path: []const u8, files: *Files, allocator: *std.mem.Allocator) !void {
     var walker = try std.fs.walkPath(allocator, path);
     defer walker.deinit();
-    while (try walker.next()) |file| {
+    while (true) {
+        const maybe_file = walker.next() catch |err| switch (err) {
+            error.AccessDenied => continue,
+            else => return err,
+        };
+        const file = if (maybe_file) |f| f else break;
         switch (file.kind) {
             .File => {
                 if (fileTime(file.path)) |time| {
