@@ -24,7 +24,8 @@ const Args = struct {
 pub fn main() !void {
     const args = parseArgs(os.argv[1..os.argv.len]) orelse os.exit(2);
 
-    const allocator = std.heap.page_allocator;
+    var gp = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = &gp.allocator;
     var arena_allocator = std.heap.ArenaAllocator.init(allocator);
     defer arena_allocator.deinit();
     const arena = &arena_allocator.allocator;
