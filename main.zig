@@ -45,6 +45,7 @@ pub fn main() !void {
 
     const fd = try os.open(args.dir, 0, os.O_RDONLY);
     defer os.close(fd);
+
     ensureIsDir(fd) catch |err| switch (err) {
         error.NotDir => {
             std.debug.warn("{} is not a directory\n", .{args.dir});
@@ -52,11 +53,13 @@ pub fn main() !void {
         },
         else => return err,
     };
+
     try searchDir(arena, args, fd, null, &files);
 
     if (args.verbose) {
         std.debug.warn("found {} files\n", .{files.items.len});
     }
+
     utils.insertionSort(File, files.items);
     if (args.reverse) {
         std.mem.reverse(File, files.items);
