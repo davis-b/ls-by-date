@@ -84,6 +84,8 @@ fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]
             .File, .Directory, .SymLink => {
                 const file = dir.openFile(entry.name, .{}) catch |err| switch (err) {
                     error.AccessDenied => continue,
+                    // Broken symbolic link, possibly more?
+                    error.FileNotFound => continue,
                     else => return err,
                 };
                 defer file.close();
