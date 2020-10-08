@@ -131,7 +131,12 @@ fn usage() void {
 
 fn parseArgs(argv: [][*:0]u8) ?Args {
     var args = Args{};
-    for (argv) |i| {
+    var stop_parsing_options: ?usize = null;
+    for (argv) |i, index| {
+        if (eql(i, "--")) {
+            stop_parsing_options = index;
+            break;
+        }
         if (eql(i, "-h") or eql(i, "--h") or eql(i, "-?") or eql(i, "--?") or eql(i, "-help") or eql(i, "--help")) {
             usage();
             return null;
@@ -145,6 +150,11 @@ fn parseArgs(argv: [][*:0]u8) ?Args {
             args.time = std.meta.stringToEnum(TimeType, std.mem.spanZ(i)[1..]).?;
         } else {
             args.dir = std.mem.spanZ(i);
+        }
+    }
+    if (stop_parsing_options) |index| {
+        for (argv[index..argv.len]) |arg| {
+            args.dir = std.mem.spanZ(arg);
         }
     }
     return args;
