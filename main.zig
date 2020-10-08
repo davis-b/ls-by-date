@@ -33,13 +33,9 @@ pub fn main() !void {
 
     var files = Files.init(arena);
 
-    if (args.recursive) {
-        // Remove trailing '/' from path name.
-        const dir = if (std.mem.endsWith(u8, args.dir, "/")) args.dir[0 .. args.dir.len - 1] else args.dir;
-        try searchDirRecursively(dir[0..], &files, arena);
-    } else {
-        try searchDir(args.dir[0..], &files, arena);
-    }
+    const fd = try os.open(args.dir, 0, os.O_RDONLY);
+    defer os.close(fd);
+    try searchDir(arena, args, fd, null, &files);
 
     if (args.verbose) {
         std.debug.warn("found {} files\n", .{files.items.len});
@@ -70,9 +66,7 @@ pub fn main() !void {
     }
 }
 
-fn searchDir(path: []const u8, files: *Files, allocator: *std.mem.Allocator) !void {
-    const fd = try os.open(path, 0, os.O_RDONLY);
-    defer os.close(fd);
+fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]const u8, files: *Files) anyerror!void {
     var dir = std.fs.Dir{ .fd = fd };
     var iter = dir.iterate();
     while (try iter.next()) |entry| {
@@ -85,44 +79,26 @@ fn searchDir(path: []const u8, files: *Files, allocator: *std.mem.Allocator) !vo
                 defer file.close();
                 const stat = try file.stat();
                 const time = stat.mtime;
-                var fname = try allocator.alloc(u8, entry.name.len);
-                errdefer allocator.free(entry.name);
-                std.mem.copy(u8, fname, entry.name);
+
+                var fname = blk: {
+                    if (prefix) |p| {
+                        break :blk try std.mem.join(allocator, "/", &[_][]const u8{ p, entry.name });
+                    } else {
+                        var fname = try allocator.alloc(u8, entry.name.len);
+                        std.mem.copy(u8, fname, entry.name);
+                        break :blk fname;
+                    }
+                };
+
                 const f = File{
                     .time = time,
                     .name = fname,
                     .kind = entry.kind,
                 };
                 try files.append(f);
-            },
-            else => {},
-        }
-    }
-}
 
-fn searchDirRecursively(path: []const u8, files: *Files, allocator: *std.mem.Allocator) !void {
-    var walker = try std.fs.walkPath(allocator, path);
-    defer walker.deinit();
-    while (true) {
-        const maybe_file = walker.next() catch |err| switch (err) {
-            error.AccessDenied => continue,
-            else => return err,
-        };
-        const file = if (maybe_file) |f| f else break;
-        switch (file.kind) {
-            .File => {
-                if (fileTime(file.path)) |time| {
-                    const substring_index = std.mem.indexOf(u8, file.path, path);
-                    const new_start = if (substring_index) |i| i + path.len + 1 else 0;
-
-                    var fname = try allocator.alloc(u8, file.path.len - new_start);
-                    std.mem.copy(u8, fname, file.path[new_start..]);
-                    const f = File{
-                        .time = time,
-                        .name = fname,
-                        .kind = file.kind,
-                    };
-                    try files.append(f);
+                if (args.recursive and entry.kind == .Directory) {
+                    try searchDir(allocator, args, file.handle, fname, files);
                 }
             },
             else => {},
