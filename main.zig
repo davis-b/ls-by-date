@@ -106,13 +106,6 @@ fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]
     }
 }
 
-fn fileTime(path: []const u8) ?isize {
-    var stat: os.Stat = undefined;
-    const p = os.toPosixPath(path) catch return null;
-    const success = os.system.stat(p[0..], &stat);
-    return if (success == 0) stat.mtim.tv_sec else null;
-}
-
 fn usage() void {
     print("Program prints files in directory, sorted by last modification time\n", .{});
     print("{} [-r -R -v] directory\n", .{os.argv[0]});
