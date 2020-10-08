@@ -15,11 +15,21 @@ const File = struct {
     kind: std.fs.Dir.Entry.Kind,
 };
 
+const TimeType = enum {
+    /// Access time
+    atime,
+    /// Creation time
+    ctime,
+    /// Modification time
+    mtime,
+};
+
 const Args = struct {
     dir: []const u8 = "./",
     reverse: bool = false,
     recursive: bool = false,
     verbose: bool = false,
+    time: TimeType = .mtime,
 };
 
 pub fn main() !void {
@@ -78,7 +88,11 @@ fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]
                 };
                 defer file.close();
                 const stat = try file.stat();
-                const time = stat.mtime;
+                const time = switch (args.time) {
+                    .atime => stat.atime,
+                    .ctime => stat.ctime,
+                    .mtime => stat.mtime,
+                };
 
                 var fname = blk: {
                     if (prefix) |p| {
@@ -107,11 +121,12 @@ fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]
 }
 
 fn usage() void {
-    print("Program prints files in directory, sorted by last modification time\n", .{});
-    print("{} [-r -R -v] directory\n", .{os.argv[0]});
+    print("Program prints files in directory, sorted by last (access|creation|modification) time\n", .{});
+    print("{} [options, with a space between each] directory\n", .{os.argv[0]});
     print("-r to print in reversed order", .{});
     print("-R for recursive searching\n", .{});
     print("-v for verbose output\n", .{});
+    print("-[a, c, m]time to change which time metric files are sorted by\n", .{});
 }
 
 fn parseArgs(argv: [][*:0]u8) ?Args {
@@ -126,6 +141,8 @@ fn parseArgs(argv: [][*:0]u8) ?Args {
             args.recursive = true;
         } else if (eql(i, "-v")) {
             args.verbose = true;
+        } else if (i[0] == '-' and std.meta.stringToEnum(TimeType, std.mem.spanZ(i)[1..]) != null) {
+            args.time = std.meta.stringToEnum(TimeType, std.mem.spanZ(i)[1..]).?;
         } else {
             args.dir = std.mem.spanZ(i);
         }
