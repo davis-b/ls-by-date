@@ -15,8 +15,10 @@ const Colors = enum(u8) {
 ///  normally, without the color codes being piped out as well.
 pub fn setColor(color: Colors) void {
     const escape = [2]u8{ 27, 91 };
-    std.debug.warn(escape ++ "{}m", .{@enumToInt(color)});
+    print(escape ++ "{}m", .{@enumToInt(color)});
 }
+
+pub fn noOpSetColor(color: Colors) void {}
 
 const stdout = std.io.getStdOut().outStream();
 pub fn print(comptime fmt: []const u8, args: anytype) void {

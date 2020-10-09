@@ -5,8 +5,6 @@ const utils = @import("utils.zig");
 // Shorthand for comparing a [*:0] to a []const u8
 const eql = utils.eql;
 const print = utils.print;
-// Changes terminal output color by printing an escape sequence to stderr.
-const setColor = utils.setColor;
 
 const Files = std.ArrayList(File);
 const File = struct {
@@ -64,6 +62,9 @@ pub fn main() !void {
     if (args.reverse) {
         std.mem.reverse(File, files.items);
     }
+
+    const use_colors = os.isatty(std.io.getStdOut().handle);
+    const setColor = if (use_colors) utils.setColor else utils.noOpSetColor;
     for (files.items) |file| {
         switch (file.kind) {
             .Directory => {
