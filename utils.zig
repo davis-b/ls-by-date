@@ -22,7 +22,7 @@ pub fn noOpSetColor(color: Colors) void {}
 
 const stdout = std.io.getStdOut().outStream();
 pub fn print(comptime fmt: []const u8, args: anytype) void {
-    stdout.print(fmt, args) catch unreachable;
+    stdout.print(fmt, args) catch @panic("Could not print!");
 }
 
 pub fn insertionSort(comptime T: type, arr: []T) void {
