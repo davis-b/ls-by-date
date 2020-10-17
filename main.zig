@@ -44,13 +44,10 @@ pub fn main() !void {
     const fd = try os.open(args.dir, 0, os.O_RDONLY);
     defer os.close(fd);
 
-    ensureIsDir(fd) catch |err| switch (err) {
-        error.NotDir => {
-            std.debug.warn("{} is not a directory\n", .{args.dir});
-            os.exit(1);
-        },
-        else => return err,
-    };
+    if (!(try isDir(fd))) {
+        std.debug.warn("{} is not a directory\n", .{args.dir});
+        os.exit(1);
+    }
 
     try searchDir(arena, args, fd, null, &files);
 
@@ -133,11 +130,9 @@ fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]
     }
 }
 
-fn ensureIsDir(fd: os.fd_t) !void {
+fn isDir(fd: os.fd_t) !bool {
     const stat = try os.fstat(fd);
-    if ((stat.mode & os.S_IFMT) != os.S_IFDIR) {
-        return error.NotDir;
-    }
+    return ((stat.mode & os.S_IFMT) == os.S_IFDIR);
 }
 
 fn usage() void {
