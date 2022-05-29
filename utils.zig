@@ -18,9 +18,9 @@ pub fn setColor(color: Colors) void {
     print(escape ++ "{}m", .{@enumToInt(color)});
 }
 
-pub fn noOpSetColor(color: Colors) void {}
+pub fn noOpSetColor(_: Colors) void {}
 
-const stdout = std.io.getStdOut().outStream();
+const stdout = std.io.getStdOut().writer();
 pub fn print(comptime fmt: []const u8, args: anytype) void {
     stdout.print(fmt, args) catch @panic("Could not print!");
 }
@@ -39,5 +39,5 @@ pub fn insertionSort(comptime T: type, arr: []T) void {
 }
 
 pub fn eql(a: [*:0]u8, b: []const u8) bool {
-    return std.mem.eql(u8, std.mem.spanZ(a), b);
+    return std.mem.eql(u8, std.mem.span(a), b);
 }

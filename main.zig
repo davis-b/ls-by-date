@@ -33,26 +33,27 @@ const Args = struct {
 pub fn main() !void {
     const args = parseArgs(os.argv[1..os.argv.len]) orelse os.exit(2);
 
-    var gp = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = &gp.allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer if (gpa.deinit()) @panic("memory leak");
+    const allocator = gpa.allocator();
     var arena_allocator = std.heap.ArenaAllocator.init(allocator);
     defer arena_allocator.deinit();
-    const arena = &arena_allocator.allocator;
+    const arena = arena_allocator.allocator();
 
     var files = Files.init(arena);
 
-    const fd = try os.open(args.dir, 0, os.O_RDONLY);
+    const fd = try os.open(args.dir, 0, os.O.RDONLY);
     defer os.close(fd);
 
     if (!(try isDir(fd))) {
-        std.debug.warn("{} is not a directory\n", .{args.dir});
+        std.debug.print("{s} is not a directory\n", .{args.dir});
         os.exit(1);
     }
 
     try searchDir(arena, args, fd, null, &files);
 
     if (args.verbose) {
-        std.debug.warn("found {} files\n", .{files.items.len});
+        print("found {} files\n", .{files.items.len});
     }
 
     utils.insertionSort(File, files.items);
@@ -66,25 +67,25 @@ pub fn main() !void {
         switch (file.kind) {
             .Directory => {
                 setColor(.red);
-                print("{}", .{file.name});
+                print("{s}", .{file.name});
                 setColor(.default);
                 print("\n", .{});
             },
             .SymLink => {
                 setColor(.green);
-                print("{}", .{file.name});
+                print("{s}", .{file.name});
                 setColor(.default);
                 print("\n", .{});
             },
             .File => {
-                print("{}\n", .{file.name});
+                print("{s}\n", .{file.name});
             },
             else => @panic("unexpected file type!"),
         }
     }
 }
 
-fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]const u8, files: *Files) anyerror!void {
+fn searchDir(allocator: std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]const u8, files: *Files) anyerror!void {
     var dir = std.fs.Dir{ .fd = fd };
     var iter = dir.iterate();
     while (try iter.next()) |entry| {
@@ -132,12 +133,12 @@ fn searchDir(allocator: *std.mem.Allocator, args: Args, fd: os.fd_t, prefix: ?[]
 
 fn isDir(fd: os.fd_t) !bool {
     const stat = try os.fstat(fd);
-    return ((stat.mode & os.S_IFMT) == os.S_IFDIR);
+    return ((stat.mode & os.S.IFMT) == os.S.IFDIR);
 }
 
 fn usage() void {
     print("Program prints files in directory, sorted by last (access|creation|modification) time\n", .{});
-    print("{} [options, with a space between each] directory\n", .{os.argv[0]});
+    print("{s} [options, with a space between each] directory\n", .{os.argv[0]});
     print("-r to print in reversed order", .{});
     print("-R for recursive searching\n", .{});
     print("-v for verbose output\n", .{});
@@ -161,15 +162,15 @@ fn parseArgs(argv: [][*:0]u8) ?Args {
             args.recursive = true;
         } else if (eql(i, "-v")) {
             args.verbose = true;
-        } else if (i[0] == '-' and std.meta.stringToEnum(TimeType, std.mem.spanZ(i)[1..]) != null) {
-            args.time = std.meta.stringToEnum(TimeType, std.mem.spanZ(i)[1..]).?;
+        } else if (i[0] == '-' and std.meta.stringToEnum(TimeType, std.mem.span(i)[1..]) != null) {
+            args.time = std.meta.stringToEnum(TimeType, std.mem.span(i)[1..]).?;
         } else {
-            args.dir = std.mem.spanZ(i);
+            args.dir = std.mem.span(i);
         }
     }
     if (stop_parsing_options) |index| {
         for (argv[index..argv.len]) |arg| {
-            args.dir = std.mem.spanZ(arg);
+            args.dir = std.mem.span(arg);
         }
     }
     return args;
